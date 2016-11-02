@@ -25,7 +25,7 @@ class Loader
     /**
      * @var array
      */
-    protected $columnNames = array();
+    protected $columnNames = [];
 
     protected $connection;
 
@@ -38,12 +38,14 @@ class Loader
         if($model != null) {
             $this->table = $model->getTable();
             $this->model = $model;
+            $this->columnNames = [];
+            unset($this->connection);
         }
 
         return $this;
     }
 
-    public function setConnection($connection){
+    public function connection($connection){
         $this->connection = $connection;
     }
 
@@ -52,10 +54,13 @@ class Loader
      */
     public function load($addition = false)
     {
-        $table = $this->table;
-        $addition = (bool)$addition;
 
-        if(!$addition){
+        echo "\e[32mLoading:\e[39m /database/seeds/master/".$this->table.".csv \n";
+
+        $table = $this->table;
+        $insertData = [];
+
+        if(!(bool)$addition){
             \DB::table($table)->truncate();
         }
 
@@ -63,28 +68,29 @@ class Loader
         $config->setDelimiter(",");
 
         $interpreter = new Interpreter();
-        $lineNumber = 0;
-        $interpreter->addObserver(function(array $columns) use (&$lineNumber) {
-            $model = $this->model->newInstance();
-
-            $lineNumber += 1;
-            if ($lineNumber == 1){
-                foreach ($columns As $column){
+        $interpreter->addObserver(function(array $record) use (&$insertData){
+            if ($this->columnNames == []){
+                foreach ($record As $column){
                     array_push($this->columnNames, $column);
                 }
 
             } else {
+                $insertLine = [];
                 for($count = 0; $count < count($this->columnNames); $count++)
                 {
-                    $columnName = $this->columnNames[$count];
-                    $model->$columnName = $columns[$count];
+                    $insertLine[$this->columnNames[$count]] = $record[$count];
                 }
-                $model->save();
+
+                $timestamp = ["created_at" => date("Y-m-d H:i:s"), "updated_at" => date("Y-m-d H:i:s")];
+
+                $insertData[] = array_merge($insertLine, $timestamp);
             }
         });
 
         $lexer = new Lexer($config);
         $lexer->parse(base_path().'/database/seeds/master/'.$table.'.csv', $interpreter);
+
+        \DB::table($table)->insert($insertData);
     }
 
     public function fix($table)
