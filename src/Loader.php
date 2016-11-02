@@ -33,12 +33,14 @@ class Loader
      * MasterLoader constructor.
      * @param Model $model
      */
-    public function __construct(Model $model = null)
+    public function model(Model $model = null)
     {
         if($model != null) {
             $this->table = $model->getTable();
             $this->model = $model;
         }
+
+        return $this;
     }
 
     public function setConnection($connection){
@@ -54,7 +56,7 @@ class Loader
         $addition = (bool)$addition;
 
         if(!$addition){
-            DB::table($table)->truncate();
+            \DB::table($table)->truncate();
         }
 
         $config = new LexerConfig();
@@ -100,7 +102,7 @@ class Loader
 
         $interpreter = new Interpreter();
         $interpreter->addObserver(function(array $columns) use (&$lineNumber) {
-            DB::connection($this->connection)
+            \DB::connection($this->connection)
                 ->table($this->table)
                 ->where($columns[2],$columns[0])
                 ->update([$columns[2] => $columns[1]]);
