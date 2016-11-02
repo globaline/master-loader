@@ -1,1 +1,2 @@
 # master-loader
+Laravel Eloquentを用いてCSVからデータベースにデータをインポートします
