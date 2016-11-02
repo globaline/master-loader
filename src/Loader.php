@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Class MasterLoader
  */
-class MasterLoader
+class Loader
 {
     /**
      * @var string
