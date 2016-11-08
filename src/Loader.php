@@ -30,14 +30,29 @@ class Loader
     protected $connection;
 
     /**
-     * MasterLoader constructor.
+     * Set table from Model class
+     *
      * @param Model $model
      */
     public function model(Model $model = null)
     {
         if($model != null) {
             $this->table = $model->getTable();
-            $this->model = $model;
+            $this->columnNames = [];
+            unset($this->connection);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Set table from table name.
+     *
+     * @param null $table
+     */
+    public function table($table = null){
+        if($model != null) {
+            $this->table = $table;
             $this->columnNames = [];
             unset($this->connection);
         }
