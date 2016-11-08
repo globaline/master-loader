@@ -67,10 +67,13 @@ class Loader
     /**
      * @param bool $addition
      */
-    public function load($addition = false)
+    public function load($csv = null, $addition = false)
     {
+        $csv = !\File::exists($csv) or is_null($csv)
+            ? database_path() . '/seeds/master/'.$table.'.csv'
+            : $csv;
 
-        echo "\e[32mLoading:\e[39m /database/seeds/master/".$this->table.".csv \n";
+        echo "\e[32mLoading:\e[39m ".$csv." \n";
 
         $table = $this->table;
         $insertData = [];
@@ -91,29 +94,27 @@ class Loader
 
             } else {
                 $insertLine = [];
-                for($count = 0; $count < count($this->columnNames); $count++)
-                {
+                for($count = 0; $count < count($this->columnNames); $count++){
                     $insertLine[$this->columnNames[$count]] = $record[$count];
                 }
 
-                $timestamp = ["created_at" => date("Y-m-d H:i:s"), "updated_at" => date("Y-m-d H:i:s")];
+                $timestamp = [
+                    "created_at" => date("Y-m-d H:i:s"),
+                    "updated_at" => date("Y-m-d H:i:s")
+                ];
 
                 $insertData[] = array_merge($insertLine, $timestamp);
             }
         });
 
         $lexer = new Lexer($config);
-        $lexer->parse(base_path().'/database/seeds/master/'.$table.'.csv', $interpreter);
+        $lexer->parse($csv, $interpreter);
 
         \DB::table($table)->insert($insertData);
     }
 
-    public function fix($table)
+    public function fix($csv = null)
     {
-        if(!empty($table)){
-            $this->table = $table;
-        }
-
         if(empty($this->connection)){
             $this->connection = env('DB_CONNECTION', 'mysql');
         }
@@ -130,7 +131,11 @@ class Loader
 
         });
 
+        $csv = !\File::exists($csv) or is_null($csv)
+            ? database_path() .'/seeds/fixer/'.$table.'.csv'
+            : $csv;
+
         $lexer = new Lexer($config);
-        $lexer->parse(base_path().'/database/seeds/fixer/'.$table.'.csv', $interpreter);
+        $lexer->parse($csv, $interpreter);
     }
 }
