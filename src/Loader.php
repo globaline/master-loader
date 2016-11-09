@@ -51,7 +51,7 @@ class Loader
      * @param null $table
      */
     public function table($table = null){
-        if($model != null) {
+        if($table != null) {
             $this->table = $table;
             $this->columnNames = [];
             unset($this->connection);
@@ -69,13 +69,18 @@ class Loader
      */
     public function load($csv = null, $addition = false)
     {
-        $csv = !\File::exists($csv) or is_null($csv)
+        $table = $this->table;
+
+        if (!\File::exists($csv) and !is_null($csv)) {
+            throw new FileNotFoundException("File does not exist at path {$csv}");
+        }
+
+        $csv = is_null($csv)
             ? database_path() . '/seeds/master/'.$table.'.csv'
             : $csv;
 
         echo "\e[32mLoading:\e[39m ".$csv." \n";
 
-        $table = $this->table;
         $insertData = [];
 
         if(!(bool)$addition){
@@ -137,5 +142,63 @@ class Loader
 
         $lexer = new Lexer($config);
         $lexer->parse($csv, $interpreter);
+    }
+
+    /**
+     * Relocate data from old table to new table.
+     *
+     * @param $old
+     * @param $new
+     * @param $columns
+     * @param null $callback
+     */
+    public function relocate($old, $new, $columns, $callback = null)
+    {
+        $query = $this->getQuery($columns);
+
+        $tables = collect(['old' => $old, 'new' => $new])->map(function($table){
+            return str_contains($table, '.')
+                ? ['connection' => explode('.', $table)[0], 'table' => explode('.', $table)[1]]
+                : ['connection' => env('DB_CONNECTION', 'mysql'), 'table' => $table];
+        });
+
+        // Extract data from old database.
+        $data = \DB::connection($tables['old']['connection'])
+            ->table($tables['old']['table'])
+            ->select($query)->get();
+
+        // Apply callback function
+        $data = is_callable($callback) ? $callback($data) : $data;
+
+        // Convert stdClass object to Array
+        $data = collect($data)->map(function($x){ return (array) $x; })->toArray();
+
+        \DB::connection($tables['new']['connection'])
+            ->table($tables['new']['table'])
+            ->insert($data);
+    }
+
+    /**
+     * Get query for DB::select method.
+     * If $columns has additional column, set this value default.
+     *
+     * @param $columns
+     * @return array
+     */
+    protected function getQuery($columns)
+    {
+        $query = [];
+        $columnList = collect(\DB::connection('temp')->getSchemaBuilder()->getColumnListing('ACCOUNT'))->prepend('false');
+
+        foreach($columns As $key => $value) {
+            $addition = is_string($key) ? !$columnList->search($key) : true;
+            if ($addition !== false){
+                $query[] = \DB::raw("\"".$key."\"".' As '.$value);
+            } else {
+                $query[] = $key.' As '.$value;
+            }
+        }
+
+        return $query;
     }
 }
