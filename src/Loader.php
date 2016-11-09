@@ -39,7 +39,7 @@ class Loader
         if($model != null) {
             $this->table = $model->getTable();
             $this->columnNames = [];
-            unset($this->connection);
+            $this->connection($model->getConnectionName());
         }
 
         return $this;
@@ -52,19 +52,38 @@ class Loader
      */
     public function table($table = null){
         if($table != null) {
-            $this->table = $table;
+            if (str_contains($table, '.')) {
+                $connect = explode('.', $table);
+                if (count($connect) < 3) {
+                    $this->connection($connect[0]);
+                    $this->table = $connect[1];
+                }
+            } else {
+                $this->connection(isset($this->connection) ? $this->connection : env('DB_CONNECTION', 'mysql'));
+                $this->table = $table;
+            }
             $this->columnNames = [];
-            unset($this->connection);
         }
 
         return $this;
     }
 
+    /**
+     * Set DB connection.
+     *
+     * @param $connection
+     * @return $this
+     */
     public function connection($connection){
         $this->connection = $connection;
+
+        return $this;
     }
 
     /**
+     * Loading records from csv file.
+     *
+     * @param null $csv
      * @param bool $addition
      */
     public function load($csv = null, $addition = false)
@@ -78,8 +97,6 @@ class Loader
         $csv = is_null($csv)
             ? database_path() . '/seeds/master/'.$table.'.csv'
             : $csv;
-
-        echo "\e[32mLoading:\e[39m ".$csv." \n";
 
         $insertData = [];
 
@@ -116,32 +133,40 @@ class Loader
         $lexer->parse($csv, $interpreter);
 
         \DB::table($table)->insert($insertData);
+        echo "\e[32mLoaded:\e[39m ".$table." \n";
     }
 
+    /**
+     * Fixing tables with csv file.
+     *
+     * @param null $csv
+     */
     public function fix($csv = null)
     {
-        if(empty($this->connection)){
-            $this->connection = env('DB_CONNECTION', 'mysql');
+        $table = $this->table;
+        $connection = $this->connection;
+
+        if (!\File::exists($csv) and !is_null($csv)) {
+            throw new FileNotFoundException("File does not exist at path {$csv}");
         }
 
+        $csv = is_null($csv) ? database_path() .'/seeds/fixer/'.$table.'.csv' : $csv;
         $config = new LexerConfig();
         $config->setDelimiter(",");
 
         $interpreter = new Interpreter();
-        $interpreter->addObserver(function(array $columns) use (&$lineNumber) {
-            \DB::connection($this->connection)
-                ->table($this->table)
-                ->where($columns[2],$columns[0])
+        $interpreter->addObserver(function(array $columns) use ($connection, $table)
+        {
+            \DB::connection($connection)
+                ->table($table)
+                ->where($columns[2], $columns[0])
                 ->update([$columns[2] => $columns[1]]);
-
         });
-
-        $csv = !\File::exists($csv) or is_null($csv)
-            ? database_path() .'/seeds/fixer/'.$table.'.csv'
-            : $csv;
 
         $lexer = new Lexer($config);
         $lexer->parse($csv, $interpreter);
+
+        echo "\e[32mFixed:\e[39m ".$table." \n";
     }
 
     /**
@@ -176,6 +201,7 @@ class Loader
         \DB::connection($tables['new']['connection'])
             ->table($tables['new']['table'])
             ->insert($data);
+        echo "\e[32mRelocated:\e[39m ".$tables['old']['table']." to ".$tables['new']['table']." \n";
     }
 
     /**
