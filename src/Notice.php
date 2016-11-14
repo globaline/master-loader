@@ -28,7 +28,7 @@ trait Notice
      *
      * @param int $phase
      */
-    protected function setPhase(int $phase)
+    protected function setPhase($phase)
     {
         $this->phase = $phase;
     }

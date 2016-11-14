@@ -12,7 +12,7 @@ trait SqlLoader
      *
      * @param bool $regenerate
      */
-    protected function generateMySQLAccess(Bool $regenerate = false)
+    protected function generateMySQLAccess($regenerate = false)
     {
         $access_file = storage_path()."/framework/cache/db_access.cnf";
 
