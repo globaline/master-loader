@@ -14,7 +14,7 @@ trait SqlLoader
      */
     protected function generateMySQLAccess($regenerate = false)
     {
-        $access_file = storage_path()."/framework/cache/db_access.cnf";
+        $access_file = "/var/tmp/db_access.cnf";
 
         if (!\File::exists($access_file) or $regenerate) {
             if (\File::exists($access_file) and $regenerate) \File::delete($access_file);
